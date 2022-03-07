@@ -224,6 +224,8 @@ private:
    */
   inline int toIndex(int, int);
 
+  void drawNewConnection(int vertex_index, std::vector<Vertex> nodes);
+
   int findPathToGoal(std::vector<Vertex> &vertex_list);
 
   Point2D getRandomPoint();

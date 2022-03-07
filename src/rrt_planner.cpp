@@ -136,6 +136,8 @@ void RRTPlanner::plan()
 
   if (goal_index != -1) {
     publishPath(goal_index, nodes);
+  } else {
+    ROS_INFO("Cannot find a path");
   }
 
 
@@ -169,12 +171,14 @@ int RRTPlanner::findPathToGoal(std::vector<Vertex>& nodes) {
       Vertex new_vertex =Vertex(potential_position, nodes.size(), closest_vertex);
       nodes.push_back(new_vertex);
 
+      int vertex_index = nodes.back().get_index();
+      drawNewConnection(vertex_index,nodes);
+
       // check if we've reached our goal
 
       if (potential_position == goal_) {
-        int goal_vertex_index = nodes.back().get_index();
-        ROS_INFO("Hey, we reached our goal, index: %d", goal_vertex_index);
-        return goal_vertex_index;
+        ROS_INFO("Hey, we reached our goal, index: %d", vertex_index);
+        return vertex_index;
       }
     }
     if (current_iterations_ == max_iterations_) ROS_INFO("Max iterations reached, no plan found.");
@@ -235,11 +239,18 @@ void RRTPlanner::buildMapImage()
   }
 }
 
+void RRTPlanner::drawNewConnection(int vertex_index, std::vector<Vertex> nodes) {
+  Point2D new_point= nodes.at(vertex_index).get_location();
+  Point2D parent_point = nodes.at(nodes.at(vertex_index).get_parent()).get_location();
+  drawLine(new_point,parent_point,cv::Scalar( 255, 0, 0 ),2);
+}
+
 void RRTPlanner::displayMapImage(int delay)
 {
   cv::imshow("Output", *map_);
   cv::waitKey(delay);
 }
+
 
 void RRTPlanner::drawCircle(Point2D & p, int radius, const cv::Scalar & color)
 {
@@ -283,14 +294,20 @@ inline int RRTPlanner::toIndex(int x, int y)
 }
 
 Point2D RRTPlanner::getRandomPoint() {
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  float map_width = map_grid_->info.width;
-  float map_height = map_grid_->info.height;
-  std::uniform_real_distribution<> x(0, map_width);
-  std::uniform_real_distribution<> y(0, map_height);
+  double goal_bias = 0.5;
+  double r = rand() / (double) RAND_MAX;
+  if (r < goal_bias) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    float map_width = map_grid_->info.width;
+    float map_height = map_grid_->info.height;
+    std::uniform_real_distribution<> x(0, map_width);
+    std::uniform_real_distribution<> y(0, map_height);
 
-  return Point2D(x(gen), y(gen));
+    return Point2D(x(gen), y(gen));
+  }
+  return goal_;
+
 }
 
 
@@ -333,15 +350,11 @@ Point2D RRTPlanner::getPointForConnection(const Point2D & new_point, const Point
                             closest_point.y() + step_size_ * sin(theta));
   }
 
-
-
   if (!isPointUnoccupied(propose_point)) {
     return closest_point;
   }
 
   Point2D current_point = closest_point;
-
-
 
   while (current_point.getDistance(propose_point) > delta_) {
     // increment towards end point
