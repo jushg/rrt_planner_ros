@@ -250,6 +250,13 @@ private:
   ros::Subscriber init_pose_sub_;
   ros::Subscriber goal_sub_;
   ros::Publisher path_pub_;
+
+  int max_iterations_;
+  float step_size_ ;
+  float delta_;
+  double goal_bias;
+  bool show_path;
+
 };
 
 }

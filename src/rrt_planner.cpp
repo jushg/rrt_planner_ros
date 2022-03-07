@@ -1,5 +1,7 @@
 #include "rrt_planner/rrt_planner.h"
 
+
+
 namespace rrt_planner
 {
 
@@ -14,6 +16,12 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
   std::string map_topic, path_topic;
   private_nh_.param<std::string>("map_topic", map_topic, "/map");
   private_nh_.param<std::string>("path_topic", path_topic, "/path");
+
+  private_nh_.param<int>("max_iteration", max_iterations_, 200000);
+  private_nh_.param<float>("step_size", step_size_, 4.5);
+  private_nh_.param<float>("delta", delta_, 1);
+  private_nh_.param<double>("goal_bias", goal_bias, 0.8);
+  private_nh_.param<bool>("show_path", show_path, true);
 
   // Subscribe to map topic
   map_sub_ = nh_->subscribe<const nav_msgs::OccupancyGrid::Ptr &>(
@@ -136,20 +144,13 @@ void RRTPlanner::plan()
 
   if (goal_index != -1) {
     publishPath(goal_index, nodes);
-  } else {
-    ROS_INFO("Cannot find a path");
-  }
-
-
+  } 
 }
 
 int RRTPlanner::findPathToGoal(std::vector<Vertex>& nodes) {
   int current_iterations_ = 0;
-  int max_iterations_ = 200000;
 
   while (current_iterations_ < max_iterations_) {
-    ROS_DEBUG("Finding the path.");
-
     // get a random point on the map
     Point2D random_point = getRandomPoint();
 
@@ -161,7 +162,7 @@ int RRTPlanner::findPathToGoal(std::vector<Vertex>& nodes) {
     // try to move from the closest known vertex towards the random point
     Point2D potential_position = getPointForConnection(random_point, closest_point);
     if (potential_position != closest_point) {
-      ROS_INFO("Distance to goal %.2f", goal_.getDistance(potential_position));
+      ROS_DEBUG("Distance to goal %.2f", goal_.getDistance(potential_position));
 
       ROS_DEBUG("Moved, closest vertex: %d", closest_vertex);
 
@@ -172,8 +173,10 @@ int RRTPlanner::findPathToGoal(std::vector<Vertex>& nodes) {
       nodes.push_back(new_vertex);
 
       int vertex_index = nodes.back().get_index();
-      drawNewConnection(vertex_index,nodes);
-
+      if (show_path){
+        drawNewConnection(vertex_index,nodes);
+        displayMapImage();
+      }
       // check if we've reached our goal
 
       if (potential_position == goal_) {
@@ -215,6 +218,7 @@ void RRTPlanner::publishPath(int goal_index, std::vector<Vertex> nodes)
 bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 {
   // TODO: Fill out this function to check if a given point is occupied/free in the map
+  if (p.x() < 0 || p.y() < 0) return false;
   if (map_grid_->data[toIndex(p.x(), p.y())]) return false;
   return true;
 }
@@ -294,15 +298,14 @@ inline int RRTPlanner::toIndex(int x, int y)
 }
 
 Point2D RRTPlanner::getRandomPoint() {
-  double goal_bias = 0.5;
   double r = rand() / (double) RAND_MAX;
   if (r < goal_bias) {
     std::random_device rd;
     std::mt19937 gen(rd());
     float map_width = map_grid_->info.width;
     float map_height = map_grid_->info.height;
-    std::uniform_real_distribution<> x(0, map_width);
-    std::uniform_real_distribution<> y(0, map_height);
+    std::uniform_real_distribution<> x(0, map_height);
+    std::uniform_real_distribution<> y(0, map_width);
 
     return Point2D(x(gen), y(gen));
   }
@@ -337,8 +340,6 @@ int RRTPlanner::getClosestVertex(const Point2D & random_point, std::vector<Verte
 }
 
 Point2D RRTPlanner::getPointForConnection(const Point2D & new_point, const Point2D & closest_point) {
-  int step_size_ = 5;
-  float delta_ = 1;
   // get the angle between the random point and our closest point (in rads)
   float theta = atan2(new_point.y() - closest_point.y(), new_point.x() - closest_point.x());
 

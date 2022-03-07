@@ -1,4 +1,8 @@
 map_topic: '/map'
 path_topic: '/path'
-
+max_iteration: 200000
+step_size: 4.5
+delta: 1
+goal_bias: 0.7
+show_path: true
 # Add more parameters here to make the RRT algorithm tunable
