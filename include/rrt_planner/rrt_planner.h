@@ -227,7 +227,9 @@ private:
   void drawNewConnection(int vertex_index, std::vector<Vertex> nodes);
 
   std::vector<Point2D> rrtPathFinding();
-  Point2D getRandomPoint();
+  std::vector<Point2D> rrtConnectPathFinding();
+
+  Point2D getRandomPoint(double goal_bias);
   Point2D getPointForConnection(const Point2D & point1, const Point2D & point2);
   int getClosestVertex(const Point2D & random_point, std::vector<Vertex> vertex_list);
 
@@ -251,9 +253,9 @@ private:
   ros::Publisher path_pub_;
 
   int max_iterations_;
+  int variation;
   float step_size_ ;
   float delta_;
-  double goal_bias;
   bool show_path;
 
 };

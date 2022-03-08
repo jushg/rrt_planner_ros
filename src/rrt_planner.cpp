@@ -18,9 +18,10 @@ RRTPlanner::RRTPlanner(ros::NodeHandle * node)
   private_nh_.param<std::string>("path_topic", path_topic, "/path");
 
   private_nh_.param<int>("max_iteration", max_iterations_, 200000);
+  private_nh_.param<int>("variation", variation, 1);
+
   private_nh_.param<float>("step_size", step_size_, 4.5);
   private_nh_.param<float>("delta", delta_, 1);
-  private_nh_.param<double>("goal_bias", goal_bias, 0.8);
   private_nh_.param<bool>("show_path", show_path, true);
 
   // Subscribe to map topic
@@ -138,7 +139,17 @@ void RRTPlanner::plan()
   //       path through the map starting from the initial pose and ending at the goal pose
   std::vector<Point2D> path_points;
   // Run until we either find the goal or reach the max iterations
-  path_points  = rrtPathFinding();
+  // path_points  = rrtPathFinding();
+  switch (variation)
+  {
+  case 1:
+    path_points = rrtConnectPathFinding();
+    break;
+  
+  default:
+    path_points = rrtPathFinding();
+    break;
+  }
 
   if (path_points.size() > 0) {
     publishPath(path_points);
@@ -155,7 +166,7 @@ std::vector<Point2D> RRTPlanner::rrtPathFinding() {
 
   while (current_iterations_ < max_iterations_) {
     // get a random point on the map
-    Point2D random_point = getRandomPoint();
+    Point2D random_point = getRandomPoint(0.2);
 
     // find the closest known vertex to that point
     int closest_vertex = getClosestVertex(random_point, nodes);
@@ -202,7 +213,91 @@ std::vector<Point2D> RRTPlanner::rrtPathFinding() {
   }
   return points;
 }
- 
+
+std::vector<Point2D> RRTPlanner::rrtConnectPathFinding() {
+  int current_iterations_ = 0;
+  std::vector<Point2D> points = {};
+
+  std::vector<Vertex> v1 = {Vertex(init_pose_,0,-1)};
+  std::vector<Vertex> v2 = {Vertex(goal_,0,-1)};
+
+  while (current_iterations_ < max_iterations_) {
+    // get a random point on the map
+    Point2D random_point = getRandomPoint(0.05);
+
+    // find the closest known vertex to that point
+    int closest_vertex_1 = getClosestVertex(random_point, v1);
+
+    Point2D closest_point_1 = v1[closest_vertex_1].get_location();
+
+    // try to move from the closest known vertex towards the random point from the start
+    Point2D potential_position_1 = getPointForConnection(random_point, closest_point_1);
+    if (potential_position_1 != closest_point_1) {
+      // If successful increase our iterations
+      current_iterations_++;
+
+      v1.push_back(Vertex(potential_position_1, v1.size(), closest_vertex_1));
+
+      if (show_path){
+        drawNewConnection(v1.back().get_index(),v1);
+        displayMapImage();
+      }
+
+      int closest_vertex_2 = getClosestVertex(potential_position_1, v2);
+
+      Point2D closest_point_2 = v2[closest_vertex_2].get_location();
+
+      Point2D potential_position_2 = getPointForConnection(random_point, closest_point_2);
+
+      if (potential_position_2 != closest_point_2) { 
+        v2.push_back(Vertex(potential_position_2, v2.size(), closest_vertex_2));
+
+        if (show_path){
+          drawNewConnection(v2.back().get_index(),v2);
+          displayMapImage();
+        }
+      }
+
+      if( v1.size() > v2.size()) {
+        std::vector<Vertex> temp = v1;
+        v1 = v2;
+        v2 = temp;
+      }
+
+
+      // check if we've reached our goal
+
+      if (potential_position_2 == potential_position_1) {
+        ROS_INFO("Hey, we reached our goal");
+        std::deque<int> index_path;
+        int current_index_start = v1.back().get_index();
+
+        while (current_index_start >= 0 ) 
+        {
+          index_path.push_front(current_index_start);
+          current_index_start = v1.at(current_index_start).get_parent();
+        }
+        for (int i : index_path) {
+          points.push_back(v1.at(i).get_location());
+        }
+
+        int current_index_end = v2.back().get_index();
+
+        while (current_index_end >= 0 ) 
+        {
+          points.push_back(v2.at(current_index_end).get_location());
+          current_index_end = v2.at(current_index_end).get_parent();
+        }
+
+        return points;
+      }
+    }
+    if (current_iterations_ == max_iterations_) ROS_INFO("Max iterations reached, no plan found.");
+  }
+  return points;
+
+}
+
 
 void RRTPlanner::publishPath(std::vector<Point2D> points)
 {
@@ -305,19 +400,19 @@ inline int RRTPlanner::toIndex(int x, int y)
   return x * map_grid_->info.width + y;
 }
 
-Point2D RRTPlanner::getRandomPoint() {
+Point2D RRTPlanner::getRandomPoint(double goal_sample_rate) {
   double r = rand() / (double) RAND_MAX;
-  if (r < goal_bias) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    float map_width = map_grid_->info.width;
-    float map_height = map_grid_->info.height;
-    std::uniform_real_distribution<> x(0, map_height);
-    std::uniform_real_distribution<> y(0, map_width);
-
-    return Point2D(x(gen), y(gen));
+  if (r < goal_sample_rate) {
+      return goal_;
   }
-  return goal_;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  float map_width = map_grid_->info.width;
+  float map_height = map_grid_->info.height;
+  std::uniform_real_distribution<> x(0, map_height);
+  std::uniform_real_distribution<> y(0, map_width);
+
+  return Point2D(x(gen), y(gen));
 
 }
 
