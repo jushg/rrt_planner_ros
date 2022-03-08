@@ -106,9 +106,9 @@ class Vertex {
      };
 
 
-     int get_index() {
-       return index_;
-     };
+    int get_index() {
+      return index_;
+    };
 
     int get_parent() {
       return parent_index_;
@@ -118,9 +118,9 @@ class Vertex {
       return (point_ == v.point_ && parent_index_ == v.parent_index_);
     }
 
-     bool operator!=(const Vertex& v) {
-       return (point_ != v.point_ || parent_index_ != v.parent_index_);
-     }
+    bool operator!=(const Vertex& v) {
+      return (point_ != v.point_ || parent_index_ != v.parent_index_);
+    }
 };
 
 /**
@@ -138,7 +138,6 @@ public:
    * a collision-free path through the map from the initial pose to the goal
    * using the RRT algorithm
    *
-   * THE CANDIDATE IS REQUIRED TO IMPLEMENT THE LOGIC IN THIS FUNCTION
    */
   void plan();
 
@@ -162,7 +161,6 @@ private:
   /**
    * Publishes the path calculated by RRT as a nav_msgs::Path msg
    *
-   * THE CANDIDATE IS REQUIRED TO IMPLEMENT THE LOGIC IN THIS FUNCTION
    */
   void publishPath(std::vector<Point2D> points);
 
@@ -171,7 +169,6 @@ private:
    * @param p: point in the map
    * @return boolean true if point is unoccupied, false if occupied
    *
-   * THE CANDIDATE IS REQUIRED TO IMPLEMENT THE LOGIC IN THIS FUNCTION
    */
   bool isPointUnoccupied(const Point2D & p);
 
@@ -224,13 +221,34 @@ private:
    */
   inline int toIndex(int, int);
 
+  /**
+   * Utility function to draw a new connection
+   */
   void drawNewConnection(int vertex_index, std::vector<Vertex> nodes);
 
+  /**
+   * Path finding with vanilla RRT
+   */
   std::vector<Point2D> rrtPathFinding();
-  std::vector<Point2D> rrtConnectPathFinding();
 
+  /**
+   * Path finding with Bi-directional RRT
+   */
+  std::vector<Point2D> biRRTPathFinding();
+
+  /**
+   * Utility function to sample a random point inside the map
+   */
   Point2D getRandomPoint(double goal_bias);
+
+   /**
+   * Utility function to find a viable connection between a new point and an existing vertex
+   */
   Point2D getPointForConnection(const Point2D & point1, const Point2D & point2);
+
+   /**
+   * Utility function to find the closest vertex
+   */
   int getClosestVertex(const Point2D & random_point, std::vector<Vertex> vertex_list);
 
 
@@ -252,6 +270,9 @@ private:
   ros::Subscriber goal_sub_;
   ros::Publisher path_pub_;
 
+   /**
+   * Utility parameters from the node server
+   */
   int max_iterations_;
   int variation;
   float step_size_ ;
