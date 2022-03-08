@@ -1,7 +1,8 @@
 # RRT for Path Planning in ROS
 
-## The Task
-Implement the Rapidly Exploring Random Trees (RRT) algorithm to plan collision-free paths in a 2D environment.
+## Overview
+
+This is my implementation of the Rapidly Exploring Random Trees (RRT) algorithm to plan collision-free paths in a 2D environment with a ROS wrapper.
 
 ## How to run it?
 Place it in your catkin workspace `src` folder and build it using:
@@ -10,7 +11,7 @@ catkin build
 ```
 
 You can run the launch file given in the `launch` folder using:
-```bash
+```
 roslaunch rrt_planner rrt_planner.launch
 ```
 
@@ -29,6 +30,12 @@ When a map has been loaded successfully it should be visible in RViz. The user c
 Press the `2D Pose Estimate` button in RViz to set the initial pose. Press the `2D Nav Goal` button in RViz to set the goal pose.
 Or you can provide the same through the topics `/initialpose` and `/move_base_simple/goal` respectively.
 
-## Tuning
-Parameters can be provided to the RRT Planner node using the [cfg/config.yaml](cfg/config.yaml) file.
-Certain RRT parameters can be made configurable by adding them to this file.
+## Modification
+
+Change the parameters in the [cfg/config.yaml](cfg/config.yaml) file to configure the algorithm:
+- Variation: the version of RRT we use to find the path
+  -  1: Connected RRT algorithm
+  -  Other numbers : Vanilla RRT algorithm
+- Step_size: the max Euclidean distance for a new connection
+- Delta: the interval distance to check for collision between 2 points of the connections
+- Max_iteration: the max number of sample to do before concluding that no path can be found
