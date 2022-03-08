@@ -164,7 +164,7 @@ private:
    *
    * THE CANDIDATE IS REQUIRED TO IMPLEMENT THE LOGIC IN THIS FUNCTION
    */
-  void publishPath(int goal_index, std::vector<Vertex> vertex_list);
+  void publishPath(std::vector<Point2D> points);
 
   /**
    * Utility function to check if a given point is free/occupied in the map
@@ -226,8 +226,7 @@ private:
 
   void drawNewConnection(int vertex_index, std::vector<Vertex> nodes);
 
-  int findPathToGoal(std::vector<Vertex> &vertex_list);
-
+  std::vector<Point2D> rrtPathFinding();
   Point2D getRandomPoint();
   Point2D getPointForConnection(const Point2D & point1, const Point2D & point2);
   int getClosestVertex(const Point2D & random_point, std::vector<Vertex> vertex_list);

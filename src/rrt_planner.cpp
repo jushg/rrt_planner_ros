@@ -136,19 +136,22 @@ void RRTPlanner::plan()
 
   // TODO: Fill out this function with the RRT algorithm logic to plan a collision-free
   //       path through the map starting from the initial pose and ending at the goal pose
-  std::vector<Vertex> nodes;
-
-  nodes.push_back(Vertex(init_pose_,0,-1));
+  std::vector<Point2D> path_points;
   // Run until we either find the goal or reach the max iterations
-  int goal_index = findPathToGoal(nodes);
+  path_points  = rrtPathFinding();
 
-  if (goal_index != -1) {
-    publishPath(goal_index, nodes);
+  if (path_points.size() > 0) {
+    publishPath(path_points);
   } 
 }
 
-int RRTPlanner::findPathToGoal(std::vector<Vertex>& nodes) {
+std::vector<Point2D> RRTPlanner::rrtPathFinding() {
   int current_iterations_ = 0;
+  std::vector<Point2D> points = {};
+
+  std::vector<Vertex> nodes;
+
+  nodes.push_back(Vertex(init_pose_,0,-1));
 
   while (current_iterations_ < max_iterations_) {
     // get a random point on the map
@@ -181,15 +184,27 @@ int RRTPlanner::findPathToGoal(std::vector<Vertex>& nodes) {
 
       if (potential_position == goal_) {
         ROS_INFO("Hey, we reached our goal, index: %d", vertex_index);
-        return vertex_index;
+        std::deque<int> index_path;
+        int current_index = vertex_index;
+
+        while (current_index >= 0 ) 
+        {
+          index_path.push_front(current_index);
+          current_index = nodes.at(current_index).get_parent();
+        }
+        for (int i : index_path) {
+          points.push_back(nodes.at(i).get_location());
+        }
+        return points;
       }
     }
     if (current_iterations_ == max_iterations_) ROS_INFO("Max iterations reached, no plan found.");
   }
-  return -1;
+  return points;
 }
+ 
 
-void RRTPlanner::publishPath(int goal_index, std::vector<Vertex> nodes)
+void RRTPlanner::publishPath(std::vector<Point2D> points)
 {
   // Create new Path msg
   nav_msgs::Path path;
@@ -197,15 +212,9 @@ void RRTPlanner::publishPath(int goal_index, std::vector<Vertex> nodes)
   path.header.stamp = ros::Time::now();
 
   // TODO: Fill nav_msgs::Path msg with the path calculated by RRT
-  int current_index = goal_index;
-  std::deque<int> index_path;
-  while (current_index >= 0 ) 
-  {
-    index_path.push_front(current_index);
-    current_index = nodes.at(current_index).get_parent();
-  }
-  for (int i : index_path) {
-    geometry_msgs::PoseStamped pose = pointToPose(nodes.at(i).get_location());
+  
+  for (Point2D point : points) {
+    geometry_msgs::PoseStamped pose = pointToPose(point);
     path.poses.push_back(pose);
   }
   
@@ -218,7 +227,6 @@ void RRTPlanner::publishPath(int goal_index, std::vector<Vertex> nodes)
 bool RRTPlanner::isPointUnoccupied(const Point2D & p)
 {
   // TODO: Fill out this function to check if a given point is occupied/free in the map
-  if (p.x() < 0 || p.y() < 0) return false;
   if (map_grid_->data[toIndex(p.x(), p.y())]) return false;
   return true;
 }
